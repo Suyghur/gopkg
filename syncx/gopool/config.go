@@ -1,4 +1,4 @@
-//@File     config.go
+//@File     conf.go
 //@Time     2023/02/22
 //@Author   #Suyghur,
 

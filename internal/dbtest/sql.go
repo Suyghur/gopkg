@@ -9,7 +9,7 @@ import (
 )
 
 // RunTest runs a test function with a mock database.
-func RunTest(t *testing.T, fn func(db *sql.DB, mock sqlmock.Sqlmock)) {
+func RunTest(t *testing.T, fn func(conn *sql.DB, mock sqlmock.Sqlmock)) {
 	db, mock, err := sqlmock.New()
 	if err != nil {
 		t.Fatalf("an error '%s' was not expected when opening a stub database connection", err)
