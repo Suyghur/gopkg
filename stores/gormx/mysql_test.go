@@ -6,13 +6,14 @@ package gormx
 
 import (
 	"database/sql"
+	"errors"
 	"regexp"
 	"testing"
 
-	"gorm.io/gorm"
-
 	"github.com/DATA-DOG/go-sqlmock"
+	"github.com/stretchr/testify/assert"
 	"github.com/yyxxgame/gopkg/internal/dbtest"
+	"gorm.io/gorm"
 )
 
 type (
@@ -25,57 +26,75 @@ type (
 )
 
 func mockGormDB(t *testing.T, conn *sql.DB) *gorm.DB {
-	//c := &trackedGormc{}
-	//
-	//c.redis = dbtest.CreateRedis(t)
-	//assert.NotNil(t, c.redis)
-	//
-	//db, err := gorm.Open(mysql.New(mysql.Config{
-	//	SkipInitializeWithVersion: true,
-	//	Conn:                      db,
-	//}), &gorm.Config{})
-	//if err != nil {
-	//	t.Fatalf("an error '%s' was not expected when initialize a gorm instance", err)
-	//}
-	//c.IGormc = NewNodeConn(gormDb, c.redis, WithExpiry(time.Second*10))
-
 	return NewGormDBFromConn(conn)
 }
 
-func TestRaw(t *testing.T) {
+func TestRawSqlQuery(t *testing.T) {
 	dbtest.RunTest(t, func(conn *sql.DB, mock sqlmock.Sqlmock) {
 		db := mockGormDB(t, conn)
 
-		resp := map[string]any{}
-		mock.ExpectQuery(regexp.QuoteMeta("SELECT * FROM `t_users` WHERE `t_users`.`id` = ? LIMIT 1")).
+		resp := make(map[string]any)
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT `name` FROM `t_users` WHERE `id` = ? LIMIT 1")).
 			WithArgs(1).
 			WillReturnRows(sqlmock.NewRows([]string{"id", "name"}).AddRow(1, "suyghur"))
 
-		sql.Result()
+		err := db.Raw("SELECT `name` FROM `t_users` WHERE `id` = ? LIMIT 1", 1).Find(&resp).Error
 
-		db.Raw("SELECT * FROM `t_users` WHERE `t_users`.`id` = ? LIMIT 1", 1).Find(&resp)
+		assert.Nil(t, err)
+		assert.Equal(t, "suyghur", resp["name"])
+	})
+}
 
-		db.Raw("SELECT * FROM `t_users` WHERE `t_users`.`id` = ? LIMIT 1", 1).Find(&resp)
+func TestRawSqlInsert(t *testing.T) {
+	dbtest.RunTest(t, func(conn *sql.DB, mock sqlmock.Sqlmock) {
+		db := mockGormDB(t, conn)
 
-		db.Query("cacheKey", func(db *gorm.DB) {
-		})
+		mock.ExpectExec(regexp.QuoteMeta("INSERT INTO `t_users` (`username`.`email`) VALUES (?, ?)")).
+			WithArgs("suyghur", "suyghurmjp@outlook.com").
+			WillReturnResult(sqlmock.NewResult(1, 1))
 
-		//db.Update("cacheKey")
-		//db.Delete("cacheKey", "")
-		//db.Create()
+		resp := db.Exec("INSERT INTO `t_users` (`username`.`email`) VALUES (?, ?)", "suyghur", "suyghurmjp@outlook.com")
+		assert.Equal(t, int64(1), resp.RowsAffected)
+	})
+}
 
-		db.Exec("cacheKey", true, func(db *grom.DB) {
-			return db.Raw("SELECT * FROM `t_users` WHERE `t_users`.`id` = ? LIMIT 1", 1).Find(&resp)
-		})
-		//err := c.Raw(&resp, "any", func(conn *gorm.DB, value interface{}) error {
-		//	c.queryRowsValue = true
-		//	return conn.Table("`t_users`").Where("`t_users`.`id` = ?", 1).Take(&resp).Error
-		//})
-		//assert.Nil(t, err)
-		//assert.True(t, c.queryRowsValue)
+func TestRawSqlUpdate(t *testing.T) {
+	dbtest.RunTest(t, func(conn *sql.DB, mock sqlmock.Sqlmock) {
+		db := mockGormDB(t, conn)
 
-		//bResp, _ := json.Marshal(resp)
-		//value, _ := db.redis.Get("any")
-		//assert.Equal(t, bResp, []byte(value))
+		mock.ExpectExec(regexp.QuoteMeta("UPDATE `t_users` SET `username` = ? WHERE `id` = ?")).
+			WithArgs("suyghur", 1).
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		resp := db.Exec("UPDATE `t_users` SET `username` = ? WHERE `id` = ?", "suyghur", 1)
+		assert.Equal(t, int64(1), resp.RowsAffected)
+	})
+}
+
+func TestRawSqlDelete(t *testing.T) {
+	dbtest.RunTest(t, func(conn *sql.DB, mock sqlmock.Sqlmock) {
+		db := mockGormDB(t, conn)
+
+		mock.ExpectExec(regexp.QuoteMeta("DELETE FROM `t_users` WHERE `username` = ?")).
+			WithArgs("suyghur").
+			WillReturnResult(sqlmock.NewResult(1, 1))
+
+		resp := db.Exec("DELETE FROM `t_users` WHERE `username` = ?", "suyghur")
+		assert.Equal(t, int64(1), resp.RowsAffected)
+	})
+}
+
+func TestRawSqlError(t *testing.T) {
+	dbtest.RunTest(t, func(conn *sql.DB, mock sqlmock.Sqlmock) {
+		db := mockGormDB(t, conn)
+
+		resp := make(map[string]any)
+		mock.ExpectQuery(regexp.QuoteMeta("SELECT `name` FROM `t_users` WHERE `id` = ? LIMIT 1")).
+			WithArgs(1).
+			WillReturnError(errors.New("test error"))
+
+		err := db.Raw("SELECT `name` FROM `t_users` WHERE `id` = ? LIMIT 1", 1).Find(&resp).Error
+
+		assert.NotNil(t, err)
 	})
 }

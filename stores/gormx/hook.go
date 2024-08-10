@@ -9,14 +9,9 @@ import (
 )
 
 type (
-
-	//ProducerHookFunc func(ctx context.Context, message *sarama.ProducerMessage) error
-
-	//ProducerHook func(ctx context.Context, message *sarama.ProducerMessage, next ProducerHookFunc) error
-
 	Handler func(*gorm.DB)
 
-	Hook func(name string, next Handler) Handler
+	Hook func(name, command string, next Handler) Handler
 
 	processor interface {
 		Get(name string) func(*gorm.DB)
@@ -27,20 +22,21 @@ type (
 func registerHook(db *gorm.DB, hooks ...Hook) {
 	var processors = []struct {
 		Name      string
+		Command   string
 		Processor processor
 	}{
-		{"gorm:create", db.Callback().Create()},
-		{"gorm:query", db.Callback().Query()},
-		{"gorm:delete", db.Callback().Delete()},
-		{"gorm:update", db.Callback().Update()},
-		{"gorm:row", db.Callback().Row()},
-		{"gorm:raw", db.Callback().Raw()},
+		{"gorm:create", "create", db.Callback().Create()},
+		{"gorm:query", "query", db.Callback().Query()},
+		{"gorm:delete", "delete", db.Callback().Delete()},
+		{"gorm:update", "update", db.Callback().Update()},
+		{"gorm:row", "row", db.Callback().Row()},
+		{"gorm:raw", "raw", db.Callback().Raw()},
 	}
 
 	for _, hook := range hooks {
 		for _, p := range processors {
 			handler := p.Processor.Get(p.Name)
-			handler = hook(p.Name, handler)
+			handler = hook(p.Name, p.Command, handler)
 
 			if err := p.Processor.Replace(p.Name, handler); err != nil {
 				panic(err)

@@ -32,7 +32,7 @@ func NewGormDB(dsn string, opts ...Option) *gorm.DB {
 	db.SetMaxOpenConns(c.MaxOpenConns)
 	db.SetConnMaxLifetime(c.ConnMaxLifetime)
 
-	registerHook(gormDB, durationHook(), traceHook())
+	registerHook(gormDB, durationHook(c.SlowThreshold), traceHook())
 
 	return gormDB
 }
@@ -53,7 +53,9 @@ func NewGormDBFromConn(conn *sql.DB, opts ...Option) *gorm.DB {
 	gormDB, _ := gorm.Open(mysql.New(mysql.Config{
 		SkipInitializeWithVersion: true,
 		Conn:                      conn,
-	}), &gorm.Config{})
+	}), &gorm.Config{
+		Logger: NewLogger(),
+	})
 
 	db, _ := gormDB.DB()
 
@@ -61,7 +63,7 @@ func NewGormDBFromConn(conn *sql.DB, opts ...Option) *gorm.DB {
 	db.SetMaxOpenConns(c.MaxOpenConns)
 	db.SetConnMaxLifetime(c.ConnMaxLifetime)
 
-	registerHook(gormDB, durationHook(), traceHook())
+	registerHook(gormDB, durationHook(c.SlowThreshold), traceHook())
 
 	return gormDB
 }

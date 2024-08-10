@@ -5,16 +5,29 @@
 package gormx
 
 import (
-	"github.com/zeromicro/go-zero/core/logx"
+	"time"
+
+	"github.com/zeromicro/go-zero/core/timex"
 	"gorm.io/gorm"
 )
 
-func durationHook() Hook {
-	return func(name string, next Handler) Handler {
+func durationHook(slowThreshold time.Duration) Hook {
+	return func(name, command string, next Handler) Handler {
 		return func(db *gorm.DB) {
-			logx.Infof("duration hook start...")
+			start := timex.Now()
 			next(db)
-			logx.Infof("duration hook end...")
+			time.Sleep(time.Second)
+			duration := timex.Since(start)
+
+			metricReqDur.Observe(duration.Milliseconds(), command)
+
+			if db.Error != nil {
+				metricReqErr.Inc(command)
+			}
+
+			if slowThreshold > 0 && duration > slowThreshold {
+				metricSlowCount.Inc(command)
+			}
 		}
 	}
 }
