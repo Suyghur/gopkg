@@ -1,12 +1,11 @@
 //@File     option.go
-//@Time     2024/8/13
+//@Time     2024/9/11
 //@Author   #Suyghur,
 
 package v2
 
 import (
-	"context"
-
+	"github.com/yyxxgame/gopkg/mq/saramakafka"
 	oteltrace "go.opentelemetry.io/otel/trace"
 )
 
@@ -20,8 +19,8 @@ func WithTracer(tracer oteltrace.Tracer) Option {
 	}
 }
 
-func WithHook(hook func(ctx context.Context, next func(ctx context.Context) error) error) Option {
+func WithHooks(hooks ...saramakafka.ConsumerHook) Option {
 	return func(c *controller) {
-		c.hooks = append(c.hooks, hook)
+		c.hooks = append(c.hooks, hooks...)
 	}
 }
